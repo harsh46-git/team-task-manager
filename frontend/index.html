@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Team Task Manager</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+    <h1 class="text-3xl font-bold text-slate-800 mb-2">Team Task Manager</h1>
+    <p class="text-slate-500 mb-6">Manage projects and tasks with your team</p>
+
+    <div class="flex gap-2 mb-6">
+      <button id="tabLogin" class="flex-1 py-2 rounded-lg bg-indigo-600 text-white font-semibold">Login</button>
+      <button id="tabSignup" class="flex-1 py-2 rounded-lg bg-slate-200 text-slate-700 font-semibold">Signup</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm">
+      <input id="loginEmail" type="email" placeholder="Email" class="w-full p-3 border border-slate-300 rounded-lg mb-3"/>
+      <input id="loginPassword" type="password" placeholder="Password" class="w-full p-3 border border-slate-300 rounded-lg mb-4"/>
+      <button onclick="login()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-semibold">Login</button>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signupForm" class="hidden">
+      <input id="signupName" type="text" placeholder="Full Name" class="w-full p-3 border border-slate-300 rounded-lg mb-3"/>
+      <input id="signupEmail" type="email" placeholder="Email" class="w-full p-3 border border-slate-300 rounded-lg mb-3"/>
+      <input id="signupPassword" type="password" placeholder="Password (min 6 chars)" class="w-full p-3 border border-slate-300 rounded-lg mb-3"/>
+      <select id="signupRole" class="w-full p-3 border border-slate-300 rounded-lg mb-4">
+        <option value="member">Member</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button onclick="signup()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-semibold">Create Account</button>
+    </div>
+
+    <p id="authMsg" class="text-red-500 text-sm mt-3 text-center"></p>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="appScreen" class="hidden">
+  <!-- Navbar -->
+  <nav class="bg-white shadow-sm border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <h1 class="text-xl font-bold text-slate-800">📋 Team Task Manager</h1>
+      <div class="flex items-center gap-4">
+        <span id="userBadge" class="text-sm text-slate-600"></span>
+        <button onclick="logout()" class="text-sm bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded-lg">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto p-4 md:p-6">
+    <!-- Dashboard Stats -->
+    <div id="statsRow" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6"></div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-4 border-b border-slate-200">
+      <button id="navProjects" class="px-4 py-2 font-semibold text-indigo-600 border-b-2 border-indigo-600">Projects</button>
+      <button id="navTasks" class="px-4 py-2 font-semibold text-slate-500">Tasks</button>
+    </div>
+
+    <!-- PROJECTS TAB -->
+    <div id="projectsView">
+      <div id="adminProjectForm" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
+        <h3 class="font-semibold mb-3">Create New Project</h3>
+        <input id="newProjName" placeholder="Project name" class="w-full p-2 border rounded mb-2"/>
+        <textarea id="newProjDesc" placeholder="Description" class="w-full p-2 border rounded mb-2"></textarea>
+        <button onclick="createProject()" class="bg-indigo-600 text-white px-4 py-2 rounded font-semibold">Create Project</button>
+      </div>
+      <div id="projectsList" class="grid gap-3 md:grid-cols-2 lg:grid-cols-3"></div>
+    </div>
+
+    <!-- TASKS TAB -->
+    <div id="tasksView" class="hidden">
+      <div id="adminTaskForm" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
+        <h3 class="font-semibold mb-3">Create New Task</h3>
+        <input id="newTaskTitle" placeholder="Task title" class="w-full p-2 border rounded mb-2"/>
+        <textarea id="newTaskDesc" placeholder="Description" class="w-full p-2 border rounded mb-2"></textarea>
+        <div class="grid md:grid-cols-3 gap-2 mb-2">
+          <select id="newTaskProject" class="p-2 border rounded"></select>
+          <select id="newTaskAssignee" class="p-2 border rounded"></select>
+          <input id="newTaskDue" type="datetime-local" class="p-2 border rounded"/>
+        </div>
+        <button onclick="createTask()" class="bg-indigo-600 text-white px-4 py-2 rounded font-semibold">Create Task</button>
+      </div>
+
+      <div class="bg-white rounded-xl shadow p-4 mb-4 flex flex-wrap gap-2">
+        <select id="filterStatus" onchange="loadTasks()" class="p-2 border rounded">
+          <option value="">All Status</option>
+          <option value="todo">To Do</option>
+          <option value="in_progress">In Progress</option>
+          <option value="done">Done</option>
+        </select>
+        <select id="filterProject" onchange="loadTasks()" class="p-2 border rounded">
+          <option value="">All Projects</option>
+        </select>
+      </div>
+
+      <div id="tasksList" class="space-y-2"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = "https://web-production-e0ea3.up.railway.app";
+let token = localStorage.getItem("token");
+let currentUser = JSON.parse(localStorage.getItem("user") || "null");
+let allUsers = [];
+let allProjects = [];
+
+// Tab toggling on auth screen
+document.getElementById("tabLogin").onclick = () => {
+  document.getElementById("loginForm").classList.remove("hidden");
+  document.getElementById("signupForm").classList.add("hidden");
+  document.getElementById("tabLogin").className = "flex-1 py-2 rounded-lg bg-indigo-600 text-white font-semibold";
+  document.getElementById("tabSignup").className = "flex-1 py-2 rounded-lg bg-slate-200 text-slate-700 font-semibold";
+};
+document.getElementById("tabSignup").onclick = () => {
+  document.getElementById("loginForm").classList.add("hidden");
+  document.getElementById("signupForm").classList.remove("hidden");
+  document.getElementById("tabSignup").className = "flex-1 py-2 rounded-lg bg-indigo-600 text-white font-semibold";
+  document.getElementById("tabLogin").className = "flex-1 py-2 rounded-lg bg-slate-200 text-slate-700 font-semibold";
+};
+
+// Tab toggling on app screen
+document.getElementById("navProjects").onclick = () => switchView("projects");
+document.getElementById("navTasks").onclick = () => switchView("tasks");
+
+function switchView(v) {
+  if (v === "projects") {
+    document.getElementById("projectsView").classList.remove("hidden");
+    document.getElementById("tasksView").classList.add("hidden");
+    document.getElementById("navProjects").className = "px-4 py-2 font-semibold text-indigo-600 border-b-2 border-indigo-600";
+    document.getElementById("navTasks").className = "px-4 py-2 font-semibold text-slate-500";
+    loadProjects();
+  } else {
+    document.getElementById("projectsView").classList.add("hidden");
+    document.getElementById("tasksView").classList.remove("hidden");
+    document.getElementById("navTasks").className = "px-4 py-2 font-semibold text-indigo-600 border-b-2 border-indigo-600";
+    document.getElementById("navProjects").className = "px-4 py-2 font-semibold text-slate-500";
+    loadTasks();
+  }
+}
+
+async function api(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(API + path, { ...options, headers });
+  if (res.status === 401) { logout(); throw new Error("Unauthorized"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || "Request failed");
+  return data;
+}
+
+async function signup() {
+  const name = document.getElementById("signupName").value.trim();
+  const email = document.getElementById("signupEmail").value.trim();
+  const password = document.getElementById("signupPassword").value;
+  const role = document.getElementById("signupRole").value;
+  if (!name || !email || password.length < 6) {
+    return showAuthMsg("Please fill all fields (password min 6 chars)");
+  }
+  try {
+    const data = await api("/api/users/signup", { method: "POST", body: JSON.stringify({ name, email, password, role }) });
+    saveAuth(data);
+  } catch (e) { showAuthMsg(e.message); }
+}
+
+async function login() {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  try {
+    const data = await api("/api/users/login", { method: "POST", body: JSON.stringify({ email, password }) });
+    saveAuth(data);
+  } catch (e) { showAuthMsg(e.message); }
+}
+
+function saveAuth(data) {
+  token = data.access_token;
+  currentUser = data.user;
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(currentUser));
+  showApp();
+}
+
+function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  token = null;
+  currentUser = null;
+  document.getElementById("authScreen").classList.remove("hidden");
+  document.getElementById("appScreen").classList.add("hidden");
+}
+
+function showAuthMsg(msg) { document.getElementById("authMsg").textContent = msg; }
+
+async function showApp() {
+  document.getElementById("authScreen").classList.add("hidden");
+  document.getElementById("appScreen").classList.remove("hidden");
+  document.getElementById("userBadge").innerHTML = `${currentUser.name} <span class="px-2 py-0.5 rounded text-xs ${currentUser.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">${currentUser.role}</span>`;
+
+  if (currentUser.role === "admin") {
+    document.getElementById("adminProjectForm").classList.remove("hidden");
+    document.getElementById("adminTaskForm").classList.remove("hidden");
+  }
+
+  await loadDashboard();
+  await loadUsers();
+  await loadProjects();
+}
+
+async function loadDashboard() {
+  try {
+    const stats = await api("/api/tasks/dashboard");
+    const cards = [
+      { label: "Total Tasks", value: stats.total, color: "bg-slate-600" },
+      { label: "To Do", value: stats.todo, color: "bg-yellow-500" },
+      { label: "In Progress", value: stats.in_progress, color: "bg-blue-500" },
+      { label: "Done", value: stats.done, color: "bg-green-500" },
+      { label: "Overdue", value: stats.overdue, color: "bg-red-500" },
+    ];
+    document.getElementById("statsRow").innerHTML = cards.map(c => `
+      <div class="bg-white rounded-xl shadow p-4">
+        <div class="text-2xl font-bold ${c.color.replace('bg-', 'text-')}">${c.value}</div>
+        <div class="text-xs text-slate-500 mt-1">${c.label}</div>
+      </div>
+    `).join("");
+  } catch (e) { console.error(e); }
+}
+
+async function loadUsers() {
+  try {
+    allUsers = await api("/api/users/");
+    const sel = document.getElementById("newTaskAssignee");
+    if (sel) sel.innerHTML = '<option value="">Unassigned</option>' + allUsers.map(u => `<option value="${u.id}">${u.name} (${u.role})</option>`).join("");
+  } catch (e) { console.error(e); }
+}
+
+async function loadProjects() {
+  try {
+    allProjects = await api("/api/projects/");
+    const list = document.getElementById("projectsList");
+    list.innerHTML = allProjects.length === 0
+      ? '<p class="text-slate-500 col-span-full text-center py-8">No projects yet</p>'
+      : allProjects.map(p => `
+        <div class="bg-white rounded-xl shadow p-4">
+          <h3 class="font-bold text-slate-800">${escapeHtml(p.name)}</h3>
+          <p class="text-sm text-slate-500 mt-1">${escapeHtml(p.description || "No description")}</p>
+          <p class="text-xs text-slate-400 mt-2">Created: ${new Date(p.created_at).toLocaleDateString()}</p>
+          ${currentUser.role === "admin" ? `<button onclick="deleteProject(${p.id})" class="mt-3 text-xs text-red-600 hover:underline">Delete</button>` : ""}
+        </div>
+      `).join("");
+
+    const projSel = document.getElementById("newTaskProject");
+    if (projSel) projSel.innerHTML = allProjects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+    const filterProj = document.getElementById("filterProject");
+    if (filterProj) filterProj.innerHTML = '<option value="">All Projects</option>' + allProjects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  } catch (e) { console.error(e); }
+}
+
+async function createProject() {
+  const name = document.getElementById("newProjName").value.trim();
+  const description = document.getElementById("newProjDesc").value.trim();
+  if (!name) return alert("Project name required");
+  try {
+    await api("/api/projects/", { method: "POST", body: JSON.stringify({ name, description }) });
+    document.getElementById("newProjName").value = "";
+    document.getElementById("newProjDesc").value = "";
+    await loadProjects();
+  } catch (e) { alert(e.message); }
+}
+
+async function deleteProject(id) {
+  if (!confirm("Delete this project and all its tasks?")) return;
+  try {
+    await api(`/api/projects/${id}`, { method: "DELETE" });
+    await loadProjects();
+    await loadDashboard();
+  } catch (e) { alert(e.message); }
+}
+
+async function loadTasks() {
+  try {
+    const status = document.getElementById("filterStatus").value;
+    const projectId = document.getElementById("filterProject").value;
+    let path = "/api/tasks/?";
+    if (status) path += `status=${status}&`;
+    if (projectId) path += `project_id=${projectId}&`;
+    const tasks = await api(path);
+    const list = document.getElementById("tasksList");
+    list.innerHTML = tasks.length === 0
+      ? '<p class="text-slate-500 text-center py-8 bg-white rounded-xl">No tasks found</p>'
+      : tasks.map(t => {
+          const project = allProjects.find(p => p.id === t.project_id);
+          const assignee = allUsers.find(u => u.id === t.assignee_id);
+          const overdue = t.due_date && new Date(t.due_date) < new Date() && t.status !== "done";
+          const statusColor = { todo: "bg-yellow-100 text-yellow-700", in_progress: "bg-blue-100 text-blue-700", done: "bg-green-100 text-green-700" }[t.status];
+          return `
+            <div class="bg-white rounded-xl shadow p-4 ${overdue ? "border-l-4 border-red-500" : ""}">
+              <div class="flex justify-between items-start gap-2">
+                <div class="flex-1">
+                  <h3 class="font-bold text-slate-800">${escapeHtml(t.title)}</h3>
+                  <p class="text-sm text-slate-500 mt-1">${escapeHtml(t.description || "")}</p>
+                  <div class="flex flex-wrap gap-2 mt-2 text-xs">
+                    <span class="px-2 py-1 rounded ${statusColor}">${t.status}</span>
+                    ${project ? `<span class="px-2 py-1 rounded bg-slate-100 text-slate-700">📁 ${escapeHtml(project.name)}</span>` : ""}
+                    ${assignee ? `<span class="px-2 py-1 rounded bg-slate-100 text-slate-700">👤 ${escapeHtml(assignee.name)}</span>` : '<span class="px-2 py-1 rounded bg-slate-100 text-slate-500">Unassigned</span>'}
+                    ${t.due_date ? `<span class="px-2 py-1 rounded ${overdue ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"}">📅 ${new Date(t.due_date).toLocaleDateString()}</span>` : ""}
+                  </div>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <select onchange="updateTaskStatus(${t.id}, this.value)" class="text-xs p-1 border rounded">
+                    <option value="todo" ${t.status === "todo" ? "selected" : ""}>To Do</option>
+                    <option value="in_progress" ${t.status === "in_progress" ? "selected" : ""}>In Progress</option>
+                    <option value="done" ${t.status === "done" ? "selected" : ""}>Done</option>
+                  </select>
+                  ${currentUser.role === "admin" ? `<button onclick="deleteTask(${t.id})" class="text-xs text-red-600 hover:underline">Delete</button>` : ""}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+  } catch (e) { console.error(e); }
+}
+
+async function createTask() {
+  const title = document.getElementById("newTaskTitle").value.trim();
+  const description = document.getElementById("newTaskDesc").value.trim();
+  const project_id = parseInt(document.getElementById("newTaskProject").value);
+  const assigneeVal = document.getElementById("newTaskAssignee").value;
+  const assignee_id = assigneeVal ? parseInt(assigneeVal) : null;
+  const dueVal = document.getElementById("newTaskDue").value;
+  const due_date = dueVal ? new Date(dueVal).toISOString() : null;
+  if (!title || !project_id) return alert("Title and project required");
+  try {
+    await api("/api/tasks/", { method: "POST", body: JSON.stringify({ title, description, project_id, assignee_id, due_date }) });
+    document.getElementById("newTaskTitle").value = "";
+    document.getElementById("newTaskDesc").value = "";
+    document.getElementById("newTaskDue").value = "";
+    await loadTasks();
+    await loadDashboard();
+  } catch (e) { alert(e.message); }
+}
+
+async function updateTaskStatus(id, status) {
+  try {
+    await api(`/api/tasks/${id}`, { method: "PUT", body: JSON.stringify({ status }) });
+    await loadDashboard();
+    await loadTasks();
+  } catch (e) { alert(e.message); }
+}
+
+async function deleteTask(id) {
+  if (!confirm("Delete this task?")) return;
+  try {
+    await api(`/api/tasks/${id}`, { method: "DELETE" });
+    await loadTasks();
+    await loadDashboard();
+  } catch (e) { alert(e.message); }
+}
+
+function escapeHtml(s) {
+  if (!s) return "";
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Auto-login if token exists
+if (token && currentUser) showApp();
+</script>
+</body>
+</html>
