@@ -30,15 +30,6 @@ def health():
     return {"status": "ok"}
 
 
-# Updated FRONTEND_DIR calculation in backend/main.py
-import os
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
-
-if os.path.isdir(FRONTEND_DIR):
-    @app.get("/")
-    def root():
-        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
-
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+@app.get("/")
+async def serve_frontend():
+    return FileResponse("index.html")
